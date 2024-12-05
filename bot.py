@@ -1,60 +1,81 @@
 import os
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+from gensim import corpora, models
+from gensim.similarities import MatrixSimilarity
+from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
+import gensim.utils
+import re
 
-# Загрузка переменных окружения из .env файла
+def preprocess_text(text):
+    lemmatizer = WordNetLemmatizer()
+    stop_words = set(stopwords.words('english'))
+    tokens = gensim.utils.simple_preprocess(text)
+    return [lemmatizer.lemmatize(token) for token in tokens if token not in stop_words]
+
+with open('ap/ap.txt', 'r', encoding='utf-8') as file:
+    documents = file.readlines()
+
+texts = [preprocess_text(doc) for doc in documents]
+
+dictionary = corpora.Dictionary(texts)
+
+corpus = [dictionary.doc2bow(text) for text in texts]
+
+num_topics = 100
+model = models.LdaModel(
+    corpus=corpus,
+    id2word=dictionary,
+    num_topics=num_topics,
+    random_state=42,
+    passes=10,
+    alpha='auto',
+    eta='auto'
+)
+
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 
-# Переменная для хранения последнего сообщения пользователя
-last_message = ""
-
-# Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    keyboard = [
-        [InlineKeyboardButton("Составить запрос", callback_data='compose_request')],
-        [InlineKeyboardButton("Оставить отзыв", callback_data='leave_feedback')]
-    ]
+    await update.message.reply_text("Напишите запрос, и я найду для вас 5 подходящих тем!")
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
+async def handle_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    user_query = update.message.text
 
-# Обработчик нажатий на кнопки
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    await query.answer()
+    processed_query = preprocess_text(user_query)
+    query_bow = dictionary.doc2bow(processed_query)
 
-    if query.data == 'compose_request':
-        await query.edit_message_text(text="Вы составили запрос!")
-    elif query.data == 'leave_feedback':
-        await query.edit_message_text(text="Составьте отзыв.")
-        # Устанавливаем состояние ожидания отзыва
-        context.user_data['waiting_for_feedback'] = True
+    query_topics = model[query_bow]
 
-# Обработчик текстовых сообщений
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    # Проверяем, ожидает ли бот отзыв
-    if context.user_data.get('waiting_for_feedback'):
-        feedback = update.message.text
-        await update.message.reply_text(f"Вы составили отзыв: {feedback}")
-        # Сбрасываем состояние ожидания
-        context.user_data['waiting_for_feedback'] = False
-    else:
-        await update.message.reply_text("Пожалуйста, используйте кнопки для выбора действия.")
+    similarities = []
+    for topic_id in range(num_topics):
+        topic_probability = next((prob for t_id, prob in query_topics if t_id == topic_id), 0)
+        similarities.append((topic_id, topic_probability))
 
-# Основная функция для запуска бота
+    top_topics = sorted(similarities, key=lambda item: -item[1])[:5]
+
+    response = "Топ-5 подходящих тем:\n"
+    for topic_id, similarity in top_topics:
+        print(f'topicID: {topic_id}, similarity: {similarity}')
+        print(f'numTopics: {num_topics}')
+
+        if 0 <= topic_id < num_topics:
+            keywords = model.show_topic(topic_id, topn=5)
+            keywords_str = ", ".join([word for word, _ in keywords])
+            response += f"Тема {topic_id + 1}: {keywords_str} (сходство: {similarity:.2f})\n"
+
+    await update.message.reply_text(response)
+
+
 def main():
-    # Создание приложения и регистрация обработчиков
     application = Application.builder().token(TOKEN).build()
 
-    # Обработчик команды /start
     application.add_handler(CommandHandler("start", start))
-
-    application.add_handler(CallbackQueryHandler(button_handler))
-
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_query))
+    print("started")
     application.run_polling()
 
 if __name__ == '__main__':
