@@ -15,7 +15,23 @@ from nltk.stem import WordNetLemmatizer
 import matplotlib.pyplot as plt
 
 
-with open('document_text.json', 'r', encoding='utf-8') as file:
+
+with open('doc_links_situation_with_theme.json', 'r', encoding='utf-8') as file:
+    data = json.load(file)
+
+
+with open('doc_links_situation_with_theme1.json', 'w', encoding='utf-8') as file:
+    json.dump(data, file, ensure_ascii=False, indent=4)
+
+with open('doc_links_situation.json', 'r', encoding='utf-8') as file:
+    data = json.load(file)
+
+
+with open('doc_links_situation1.json', 'w', encoding='utf-8') as file:
+    json.dump(data, file, ensure_ascii=False, indent=4)
+
+
+with open('document_text_situation.json', 'r', encoding='utf-8') as file:
     data = json.load(file)
 
 def clean_text(text):
@@ -50,49 +66,77 @@ def lemmatize_text(text):
     return ' '.join(lemmatized_words)
 
 
-# preprocessed_data_stemming = {}
-# preprocessed_data_lemmatize = {}
-#
-# for key, values in data.items():
-#     print(key)
-#     cleaned_values = [clean_text(value) for value in values]
-#     cleaned_values = [remove_stopwords(value) for value in cleaned_values]
-#
-#     stemmed_values = [stem_text_russian(value) for value in cleaned_values]
-#     lemmatized_values = [lemmatize_text(value) for value in cleaned_values]
-#
-#     preprocessed_data_stemming[key] = stemmed_values
-#     preprocessed_data_lemmatize[key] = lemmatized_values
-# with open('document_text_preprocessed_stemming.json', 'w', encoding='utf-8') as file:
-#     json.dump(preprocessed_data_stemming, file, indent=4, ensure_ascii=False)
-#
-# with open('document_text_preprocessed_lemmatize.json', 'w', encoding='utf-8') as file:
-#     json.dump(preprocessed_data_lemmatize, file, indent=4, ensure_ascii=False)
 
-# preprocessed_data_stemming = []
-# preprocessed_data_lemmatize = []
-#
-# for item in data:
-#     cleaned_item = {}
-#     for key, value in item.items():
-#         cleaned_key = clean_text(key)
-#         cleaned_key = remove_stopwords(cleaned_key)
-#         cleaned_item[cleaned_key] = value
-#
-#     preprocessed_data_stemming.append({stem_text_russian(key): value for key, value in cleaned_item.items()})
-#     preprocessed_data_lemmatize.append({lemmatize_text(key): value for key, value in cleaned_item.items()})
-#
-# with open('document_text_preprocessed_stemming.json', 'w', encoding='utf-8') as file:
-#     json.dump(preprocessed_data_stemming, file, indent=4, ensure_ascii=False)
-#
-# with open('document_text_preprocessed_lemmatize.json', 'w', encoding='utf-8') as file:
-#     json.dump(preprocessed_data_lemmatize, file, indent=4, ensure_ascii=False)
+preprocessed_data_stemming = {}
+preprocessed_data_lemmatize = {}
 
-#
+for key, values in data.items():
+    print(key)
+    cleaned_values = [clean_text(value) for value in values]
+    cleaned_values = [remove_stopwords(value) for value in cleaned_values]
 
-# document_text_preprocessed_stemming_links = {}
-# document_text_preprocessed_lemmatize_links = {}
-#
+    stemmed_values = [stem_text(value) for value in cleaned_values]
+    lemmatized_values = [lemmatize_text(value) for value in cleaned_values]
+
+    preprocessed_data_stemming[key] = stemmed_values
+    preprocessed_data_lemmatize[key] = lemmatized_values
+
+with open('document_text_preprocessed_stemming.json', 'w', encoding='utf-8') as file:
+    json.dump(preprocessed_data_stemming, file, indent=4, ensure_ascii=False)
+
+with open('document_text_preprocessed_lemmatize.json', 'w', encoding='utf-8') as file:
+    json.dump(preprocessed_data_lemmatize, file, indent=4, ensure_ascii=False)
+
+preprocessed_data_stemming = []
+preprocessed_data_lemmatize = []
+
+for key, values in data.items():
+    cleaned_item = {}
+    for value in values:
+        cleaned_key = clean_text(value)
+        cleaned_key = remove_stopwords(cleaned_key)
+        cleaned_item[cleaned_key] = value
+
+    preprocessed_data_stemming.append({stem_text(key): value for key, value in cleaned_item.items()})
+    preprocessed_data_lemmatize.append({lemmatize_text(key): value for key, value in cleaned_item.items()})
+
+with open('document_text_situation_preprocessed_stemming.json', 'w', encoding='utf-8') as file:
+    json.dump(preprocessed_data_stemming, file, indent=4, ensure_ascii=False)
+
+with open('document_text_situation_preprocessed_lemmatize.json', 'w', encoding='utf-8') as file:
+    json.dump(preprocessed_data_lemmatize, file, indent=4, ensure_ascii=False)
+
+
+
+
+# для links
+for item in data.values():
+    if isinstance(item, dict):
+        cleaned_item = {}
+        for key, value in item.items():
+            cleaned_key = clean_text(key)
+            cleaned_key = remove_stopwords(cleaned_key)
+            cleaned_item[cleaned_key] = value
+
+        preprocessed_data_stemming.append({stem_text(key): value for key, value in cleaned_item.items()})
+        preprocessed_data_lemmatize.append({lemmatize_text(key): value for key, value in cleaned_item.items()})
+    else:
+        print(f"Skipping non-dict item: {item}")
+
+
+
+
+
+
+
+
+
+
+
+
+document_text_preprocessed_stemming_links = {}
+document_text_preprocessed_lemmatize_links = {}
+
 # for doc_dict in doc_links:
 #     for doc_name, doc_id in doc_dict.items():
 #         stemming_text = preprocessed_stemming.get(str(doc_id), "Текст не найден")
@@ -100,116 +144,194 @@ def lemmatize_text(text):
 #
 #         document_text_preprocessed_stemming_links[doc_name] = stemming_text
 #         document_text_preprocessed_lemmatize_links[doc_name] = lemmatize_text
-#
-# with open('document_text_preprocessed_stemming_links.json', 'w', encoding='utf-8') as file:
-#     json.dump(document_text_preprocessed_stemming_links, file, indent=4, ensure_ascii=False)
-#
-# with open('document_text_preprocessed_lemmatize_links.json', 'w', encoding='utf-8') as file:
-#     json.dump(document_text_preprocessed_lemmatize_links, file, indent=4, ensure_ascii=False)
 
-# key_counts = defaultdict(int)
-#
-# for item in data:
-#     for key in item.keys():
-#         key_counts[key] += 1
-#
-# print("Количество объектов для каждого ключа:")
-# for key, count in key_counts.items():
-#     print(f"Ключ '{key}': {count}")
-#
-# print("\nКлючи, которые встречаются более одного раза:")
-# for key, count in key_counts.items():
-#     if count > 1:
-#         print(f"Ключ '{key}': {count}")
+with open('document_text_preprocessed_stemming_links.json', 'w', encoding='utf-8') as file:
+    json.dump(document_text_preprocessed_stemming_links, file, indent=4, ensure_ascii=False)
 
+with open('document_text_preprocessed_lemmatize_links.json', 'w', encoding='utf-8') as file:
+    json.dump(document_text_preprocessed_lemmatize_links, file, indent=4, ensure_ascii=False)
 
+key_counts = defaultdict(int)
+
+for item in data:
+    for key in item.keys():
+        key_counts[key] += 1
+
+print("Количество объектов для каждого ключа:")
+for key, count in key_counts.items():
+    print(f"Ключ '{key}': {count}")
+
+print("\nКлючи, которые встречаются более одного раза:")
+for key, count in key_counts.items():
+    if count > 1:
+        print(f"Ключ '{key}': {count}")
 
 
-# # 1. Загрузка данных из JSON
-# with open('document_text_preprocessed_lemmatize.json', 'r', encoding='utf-8') as file:
-#     preprocessed = json.load(file)
-#
-# # 2. Список фраз для удаления
-# phrases_to_remove = [
-#     "получить услуга", "какой документ нужный", "стоимость услуга порядок оплата",
-#     "результат получить", "срок хранение результат", "получить результат",
-#     "описание результат", "срок оказание услуга", "основание отказ",
-#     "основание приостановление услуга", "основание отказ приём документ",
-#     "подать заявление", "информация формирование сертификат электронный вид",
-#     "часто задавать вопрос", "нормативный документ услуга"
-# ]
-#
-# # 3. Очистка текста от фраз
-# def remove_phrases(texts, phrases):
-#     cleaned_texts = []
-#     for text in texts:
-#         text_str = " ".join(text)
-#         for phrase in phrases:
-#             text_str = text_str.replace(phrase, '')
-#         cleaned_texts.append(text_str.split())
-#     return cleaned_texts
-# # 4. Очистка текста от нежелательных фраз
-# texts = remove_phrases([text for text in preprocessed.values()], phrases_to_remove)
-#
-#
-# # 6. Создание словаря и корпуса для LDA
-# dictionary = corpora.Dictionary(texts)
-# corpus = [dictionary.doc2bow(text) for text in texts]
-#
-# # 7. Создание LDA-модели
-# num_topics = 5
-# lda_model = models.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics, passes=20, alpha='auto', random_state=42)
-#
-# # 8. Вывод тем с ключевыми словами
-# print("Темы с ключевыми словами:")
-# for i, topic in lda_model.show_topics(num_topics=num_topics, num_words=20, formatted=False):
-#     print(f"\nТема {i + 1}:")
-#     for word, prob in topic:
-#         print(f"{word}: {prob:.3f}")
-#
-#
-#
 
-with open('document_text.json', 'r', encoding='utf-8') as file:
+
+# 1. Загрузка данных из JSON
+with open('document_text_situation_preprocessed_lemmatize.json', 'r', encoding='utf-8') as file:
+    preprocessed = json.load(file)
+
+# 2. Список фраз для удаления
+phrases_to_remove = [
+    "получить услуга", "какой документ нужный", "стоимость услуга порядок оплата",
+    "результат получить", "срок хранение результат", "получить результат",
+    "описание результат", "срок оказание услуга", "основание отказ",
+    "основание приостановление услуга", "основание отказ приём документ",
+    "подать заявление", "информация формирование сертификат электронный вид",
+    "часто задавать вопрос", "нормативный документ услуга"
+]
+
+# 3. Очистка текста от фраз
+def remove_phrases(texts, phrases):
+    cleaned_texts = []
+    for text in texts:
+        text_str = " ".join(text)
+        for phrase in phrases:
+            text_str = text_str.replace(phrase, '')
+        cleaned_texts.append(text_str.split())
+    return cleaned_texts
+# 4. Очистка текста от нежелательных фраз
+texts = remove_phrases(preprocessed, phrases_to_remove)
+
+
+# 6. Создание словаря и корпуса для LDA
+dictionary = corpora.Dictionary(texts)
+corpus = [dictionary.doc2bow(text) for text in texts]
+
+# 7. Создание LDA-модели
+num_topics = 5
+lda_model = models.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics, passes=20, alpha='auto', random_state=42)
+
+# 8. Вывод тем с ключевыми словами
+print("Темы с ключевыми словами:")
+for i, topic in lda_model.show_topics(num_topics=num_topics, num_words=20, formatted=False):
+    print(f"\nТема {i + 1}:")
+    for word, prob in topic:
+        print(f"{word}: {prob:.3f}")
+
+
+
+
+
+
+
+
+with open('document_text_situation.json', 'r', encoding='utf-8') as file:
     document_text = json.load(file)
 
-with open('doc_links1.json', 'r', encoding='utf-8') as file:
+with open('doc_links_situation1.json', 'r', encoding='utf-8') as file:
     doc_links = json.load(file)
 
-with open('document_text_preprocessed_stemming.json', 'r', encoding='utf-8') as file:
-    preprocessed_stemming = json.load(file)
-
-with open('document_text_preprocessed_lemmatize.json', 'r', encoding='utf-8') as file:
-    preprocessed_lemmatize = json.load(file)
+with open('doc_links_situation_with_theme1.json', 'r', encoding='utf-8') as file:
+    doc_links_with_theme = json.load(file)
 
 rows = []
 
-
 def cleaning_text(text):
-    # Проверка, является ли текст строкой
     if isinstance(text, str):
         return text.replace('[', '').replace(']', '').replace(',', '')
     else:
         return text
 
 
+theme_dict = {}
+for theme, docs in doc_links_with_theme.items():
+    for doc_name, doc_id in docs.items():
+        theme_dict[str(doc_id)] = theme
+
+
 for doc_dict in doc_links:
     for doc_name, doc_id in doc_dict.items():
+        print(doc_id)
         original_text = document_text.get(str(doc_id), "Текст не найден")
-        lemmatized_text = preprocessed_lemmatize.get(str(doc_id), "Текст не найден")
-        stemmed_text = preprocessed_stemming.get(str(doc_id), "Текст не найден")
 
 
-        original_text = cleaning_text(original_text)
-        lemmatized_text = cleaning_text(lemmatized_text)
-        stemmed_text = cleaning_text(stemmed_text)
+        original_nolist_text=' '.join(original_text)
+        original_nolist_text = clean_text(original_nolist_text)
+        original_nolist_text = remove_stopwords(original_nolist_text)
+        original_nolist_text = cleaning_text(original_nolist_text)
 
-        rows.append([doc_id, doc_name, original_text, lemmatized_text, stemmed_text])
+        lemmatized_text = lemmatize_text(original_nolist_text)
+        stemmed_text  = stem_text(original_nolist_text)
 
-df = pd.DataFrame(rows, columns=['id', 'doc_name', 'text', 'lemm_text', 'stemm_text'])
+        theme = theme_dict.get(str(doc_id), "Тема не найдена")
 
-df.to_csv('documents.csv', index=False, encoding='utf-8', sep=';')
+        rows.append([doc_id, doc_name, original_text, theme, lemmatized_text, stemmed_text])
+        rows.append([doc_id, doc_name, original_text,theme, lemmatized_text, stemmed_text])
 
-df_new = pd.read_csv('documents.csv', sep=';', encoding='utf-8-sig')
+df = pd.DataFrame(rows, columns=['id', 'doc_name', 'text', 'theme', 'lemm_text', 'stemm_text'])
+#
+# df.to_csv('documents_situation.csv', index=False, encoding='utf-8', sep=';')
+#
+df_new = pd.read_csv('documents.csv', sep=';', encoding='utf-8')
+#df_new = df_new.drop_duplicates(subset=['id'])
 
-print(df_new['id'])
+#df_new.to_csv('documents.csv', index=False, encoding='utf-8', sep=';')
+#print(df_new['theme'])
+
+filtered_df = df_new[df_new['theme'].isin(["Федеральная служба судебных приставов России"])]
+
+print(filtered_df['doc_name'])
+
+
+
+
+
+import json
+import torch
+from transformers import GPT2Tokenizer, GPT2LMHeadModel, Trainer, TrainingArguments
+from datasets import Dataset
+
+# 1. Загрузка данных из JSON файла
+with open('document_text_situation.json', 'r', encoding='utf-8') as file:
+    docs_text = json.load(file)
+
+# 2. Объединение всех текстов в один
+combined_text = ' '.join(docs_text)
+
+# 3. Инициализация токенизатора и модели GPT-2
+tokenizer = GPT2Tokenizer.from_pretrained('gpt2-medium')
+
+# Устанавливаем паддинг-токен
+tokenizer.pad_token = tokenizer.eos_token  # Используем eos_token как паддинг-токен
+
+model = GPT2LMHeadModel.from_pretrained('gpt2-medium')
+
+# 4. Токенизация текста
+inputs = tokenizer(combined_text, return_tensors='pt', max_length=1024, truncation=True, padding='max_length')
+
+# Для обучения GPT-2 мы используем текст как input_ids и labels (метки) как input_ids
+inputs['labels'] = inputs['input_ids']
+
+# 5. Подготовка данных для тренировки
+dataset = Dataset.from_dict({
+    'input_ids': inputs['input_ids'],
+    'attention_mask': inputs['attention_mask'],
+    'labels': inputs['labels']  # добавляем метки в датасет
+})
+
+# 6. Настройка параметров тренировки
+training_args = TrainingArguments(
+    output_dir='./results',          # директория для результатов
+    overwrite_output_dir=True,       # перезаписать директорию
+    num_train_epochs=3,              # количество эпох
+    per_device_train_batch_size=1,   # размер батча
+    save_steps=10_000,               # сохранять модель каждые 10,000 шагов
+    save_total_limit=2,              # сохранять максимум 2 модели
+)
+
+# 7. Создание объекта Trainer
+trainer = Trainer(
+    model=model,                     # модель GPT-2
+    args=training_args,              # параметры тренировки
+    train_dataset=dataset            # тренировочный датасет
+)
+
+# 8. Запуск тренировки
+trainer.train()
+
+# 9. Сохранение модели
+model.save_pretrained('D:/fine_tuned_gpt2')
+tokenizer.save_pretrained('D:/fine_tuned_gpt2')
