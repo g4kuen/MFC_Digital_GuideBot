@@ -6,31 +6,28 @@ import re
 from dotenv import load_dotenv
 from fontTools.merge.util import first
 from numpy.random import choice
+from scipy.spatial.distance import cosine
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 from gensim.models import Word2Vec
-from sklearn.metrics.pairwise import cosine_similarity
+from sklearn.metrics.pairwise import euclidean_distances
 import numpy as np
 from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
 from transformers import pipeline
 
-
-
 import requests
-
-
-
 
 
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
 url = os.getenv("URL")
-with open('doc_links_situation1.json', 'r', encoding='utf-8') as file:
-    data = json.load(file)
 
 with open('doc_links_situation1.json', 'r', encoding='utf-8') as file:
     raw_label_data = json.load(file)
+
+with open('doc_links1.json', 'r', encoding='utf-8') as file:
+     data = json.load(file)
 
 with open('document_text_situation.json','r',encoding='utf-8') as file:
     docs_text = json.load(file)
@@ -52,7 +49,6 @@ def preprocess_text(text):
     text = text.lower()
 
     return text
-
 
 
 def generate_gpt_response(service_name):
@@ -86,21 +82,21 @@ def generate_gpt_response(service_name):
 
     prompt = f"Документ ID {last_number}\n\nОпиши, какие шаги нужно предпринять для оформления услуги: {service_name}"
     #prompt = f"Документ ID {last_number}\n\nОпиши, какие шаги нужно предпринять для оформления услуги: {service_name} текст для изучения :{document_text}. текст результата:"
-    print(prompt)
+    #print(prompt)
 
     data = {"text": prompt}
 
     response = requests.post(url, json=data)
 
-    if response.status_code == 200:
-        print("Ответ нейронной сети:")
-        print(response.json()['response'])
-    else:
-        print("Ошибка при отправке запроса:", response.status_code)
+    # if response.status_code == 200:
+    #     #print("Ответ нейронной сети:")
+    #    #print(response.json()['response'])
+    # else:
+    #     #print("Ошибка при отправке запроса:", response.status_code)
 
     generated_text = response.json()['response']
     generated_text = generated_text[len(prompt):]
-    print(generated_text)
+   # print(generated_text)
     return generated_text
 
 
@@ -110,11 +106,11 @@ for item in raw_label_data:
         documents.append(f"{key} {value}")
 
 tokenized_documents = [preprocess_text(doc) for doc in documents]
+print(tokenized_documents)
+cbow_model = Word2Vec(sentences=tokenized_documents, vector_size=100, window=7, min_count=1, sg=0)
 
-cbow_model = Word2Vec(sentences=tokenized_documents, vector_size=100, window=5, min_count=1, sg=0)
 
-
-def document_vector(doc, model):
+def get_document_vector(doc, model):
     doc = [word for word in doc if word in model.wv.index_to_key]
     if doc:
         return np.mean(model.wv[doc], axis=0)
@@ -122,7 +118,7 @@ def document_vector(doc, model):
         return np.zeros(model.vector_size)
 
 
-document_vectors = np.array([document_vector(doc, cbow_model) for doc in tokenized_documents])
+document_vectors = np.array([get_document_vector(doc, cbow_model) for doc in tokenized_documents])
 
 
 def get_labeled_response(indices):
@@ -141,7 +137,7 @@ def get_labeled_response(indices):
 
 def split_message(message, max_length=4096):
     return [message[i:i + max_length] for i in range(0, len(message), max_length)]
-
+###a321312
 
 
 def generate_choice_keyboard(indices):
@@ -155,8 +151,8 @@ def generate_choice_keyboard(indices):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     keyboard = [
-        [InlineKeyboardButton("Составить запрос", callback_data='compose_request')],
-        [InlineKeyboardButton("Оставить отзыв", callback_data='leave_feedback')]
+        [InlineKeyboardButton("Составить запрос ", callback_data='compose_request')],
+        [InlineKeyboardButton("Оставить отзыв ", callback_data='leave_feedback')]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
@@ -178,7 +174,7 @@ top_indixes=[]
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if context.user_data.get('waiting_for_feedback'):
         feedback = update.message.text
-        print("составленный отзыв ", feedback)
+        #print("составленный отзыв ", feedback)
         await update.message.reply_text(f"Вы составили отзыв: {feedback}")
         context.user_data['waiting_for_feedback'] = False
     else:
@@ -186,14 +182,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if 'user_query' in context.user_data:
             user_message = context.user_data['user_query'] + " " + user_message
         user_tokens = preprocess_text(user_message)
-        user_vector = document_vector(user_tokens, cbow_model)
-        cosine_similarities = cosine_similarity([user_vector], document_vectors).flatten()
-        top_indices = cosine_similarities.argsort()[-5:][::-1]
+        print(user_tokens)
+        user_vector = get_document_vector(user_tokens, cbow_model)
+
+        euclidean_distances_results = euclidean_distances([user_vector], document_vectors).flatten()
+        #print(document_vectors, "- doc vectors")
+        #print(cosine_similarities.shape, "- cosine vector")
+
+        #print(cbow_model, " - cbow")
+        top_indices = euclidean_distances_results.argsort()[-5:]
+        #print(document_vectors,"documents")
+        #print(user_vector,"user")
+        print(top_indices)
+        print(euclidean_distances_results[top_indices])
+
 
         context.user_data['top_indices'] = top_indices
         top_indixes = context.user_data['top_indices']
-
-        if cosine_similarities[top_indices[0]] < 0.4:
+        if euclidean_distances_results[top_indices[0]] > 0.05:
             if 'query_attempts' not in context.user_data:
                 context.user_data['query_attempts'] = 1
                 context.user_data['user_query'] = user_message
@@ -223,7 +229,7 @@ async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     query = update.callback_query
     await query.answer()
 
-    print(context.user_data)
+    #print(context.user_data)
     top_indices = context.user_data['top_indices']
     if top_indices.size == 0:
         await query.edit_message_text("Ошибка: нет доступных индексов для выбора.")

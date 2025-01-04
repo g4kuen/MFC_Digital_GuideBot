@@ -7,7 +7,7 @@ load_dotenv()
 
 url = os.getenv("URL")
 
-data = {"text": "тестовый запрос"}
+data = {"text": "напиши сортировку пузырьком на python"}
 
 response = requests.post(url, json=data)
 
