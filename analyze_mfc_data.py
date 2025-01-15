@@ -2,9 +2,9 @@ import json
 import re
 import nltk
 from collections import defaultdict
-from nltk.stem import PorterStemmer
 import pymorphy2
 from nltk.stem.snowball import SnowballStemmer
+
 import pandas as pd
 # nltk.download('stopwords')
 # nltk.download('punkt')
@@ -16,22 +16,22 @@ import matplotlib.pyplot as plt
 
 
 
-with open('doc_links_situation_with_theme.json', 'r', encoding='utf-8') as file:
+with open('data/doc_links_situation_with_theme.json', 'r', encoding='utf-8') as file:
     data = json.load(file)
 
 
-with open('doc_links_situation_with_theme1.json', 'w', encoding='utf-8') as file:
+with open('data/doc_links_situation_with_theme1.json', 'w', encoding='utf-8') as file:
     json.dump(data, file, ensure_ascii=False, indent=4)
 
-with open('doc_links_situation.json', 'r', encoding='utf-8') as file:
+with open('data/doc_links_situation.json', 'r', encoding='utf-8') as file:
     data = json.load(file)
 
 
-with open('doc_links_situation1.json', 'w', encoding='utf-8') as file:
+with open('data/doc_links_situation1.json', 'w', encoding='utf-8') as file:
     json.dump(data, file, ensure_ascii=False, indent=4)
 
 
-with open('document_text_situation.json', 'r', encoding='utf-8') as file:
+with open('data/document_text_situation.json', 'r', encoding='utf-8') as file:
     data = json.load(file)
 
 def clean_text(text):
@@ -65,6 +65,35 @@ def lemmatize_text(text):
     lemmatized_words = [morph.parse(word)[0].normal_form for word in words]
     return ' '.join(lemmatized_words)
 
+# Ensure necessary NLTK packages are downloaded
+nltk.download('punkt')
+
+# Загрузка исходного JSON файла
+input_file = 'data/doc_links_situation1.json'
+output_file = 'data/doc_links_situation_stemming.json'
+
+with open(input_file, 'r', encoding='utf-8') as file:
+    raw_label_data = json.load(file)
+
+
+processed_data = []
+
+for item in raw_label_data:
+    processed_item = {}
+    for key, value in item.items():
+        original_text = f"{key} {value}"
+        stemmed_text = stem_text(original_text)
+        lemmatized_text = lemmatize_text(original_text)
+
+        processed_item[key] = stemmed_text
+
+    processed_data.append(processed_item)
+
+
+with open(output_file, 'w', encoding='utf-8') as file:
+    json.dump(processed_data, file, ensure_ascii=False, indent=4)
+
+print(f"Данные успешно обработаны и сохранены в {output_file}")
 
 
 # preprocessed_data_stemming = {}
@@ -167,149 +196,149 @@ def lemmatize_text(text):
 #         print(f"Ключ '{key}': {count}")
 
 
-
-import json
-import pandas as pd
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.stem import PorterStemmer
-from gensim import corpora, models
-
-# Загрузка данных и стоп-слов
-nltk.download('stopwords')
-nltk.download('punkt')
-stop_words = set(stopwords.words('russian'))
-
-# 1. Загрузка данных из JSON
-with open('document_text_situation_preprocessed_stemming.json', 'r', encoding='utf-8') as file:
-    preprocessed = json.load(file)
-
-# 2. Список фраз для удаления
-phrases_to_remove = [
-    "получ услуг", "какой документ нужн", "стоим услуг порядк оплат",
-    "результ получ", "срок хран результат", "получ результат",
-    "опис результат", "срок оказ услуг", "основан отказ",
-    "основан приостанов услуг", "основан отказ приём документ",
-    "подат заявлен", "информа формирован сертифик электрон вид",
-    "част зада вопрос", "норматив документ услуг"
-]
-
-
-def remove_phrases_and_stopwords(texts, phrases_to_remove, stop_words):
-    cleaned_texts = []
-    for text in texts:
-        text_str = " ".join(text)
-        filtered_text = text_str
-        for phrase in phrases_to_remove:
-            filtered_text = filtered_text.replace(phrase, '')
-
-        filtered_tokens = word_tokenize(filtered_text)
-
-        final_tokens = [word for word in filtered_tokens if word not in stop_words]
-
-
-        cleaned_texts.append(final_tokens)
-
-    return cleaned_texts
-
-
-# Применяем очистку текста
-texts = remove_phrases_and_stopwords(preprocessed, phrases_to_remove, stop_words)
-
-# 4. Создание словаря и корпуса для LDA
-dictionary = corpora.Dictionary(texts)
-corpus = [dictionary.doc2bow(text) for text in texts]
-
-# 5. Создание LDA-модели
-num_topics = 5
-lda_model = models.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics, passes=20, alpha='auto', random_state=42)
-
-# 6. Вывод тем с ключевыми словами
-print("Темы с ключевыми словами:")
-for i, topic in lda_model.show_topics(num_topics=num_topics, num_words=20, formatted=False):
-    print(f"\nТема {i + 1}:")
-    for word, prob in topic:
-        print(f"{word}: {prob:.3f}")
-
-# 7. Создание файла разметки для BERT
-def create_bert_markup(texts, lda_model, dictionary):
-    data = []
-    for text in texts:
-        bow = dictionary.doc2bow(text)  # Преобразование текста в bag-of-words
-        topics = lda_model.get_document_topics(bow)  # Получение вероятностей тем
-        dominant_topic = max(topics, key=lambda x: x[1])[0]  # Тема с наибольшей вероятностью
-        data.append({
-            "text": " ".join(text),
-            "label": dominant_topic
-        })
-    return data
-
-# 8. Генерация разметки и сохранение в файл
-bert_markup = create_bert_markup(texts, lda_model, dictionary)
-
-output_file = 'bert_markup.json'
-with open(output_file, 'w', encoding='utf-8') as file:
-    json.dump(bert_markup, file, ensure_ascii=False, indent=4)
-
-print(f"\nФайл разметки для BERT сохранен как '{output_file}'.")
-
-# 9. Применение разметки BERT к данным из CSV
-csv_file = 'data/documents_situation.csv'
-output_csv = 'bert_markup.csv'
-
-# Загрузка BERT разметки
-with open(output_file, 'r', encoding='utf-8') as file:
-    bert_markup = json.load(file)
-
-# Загрузка данных из CSV
-df = pd.read_csv(csv_file, sep=';')
-
-# Функции очистки и обработки текста
-def remove_phrases_stemmed(text, phrases):
-    for phrase in phrases:
-        text = text.replace(phrase, '')
-    return text.strip()
-
-def cleaning_text(text):
-    if isinstance(text, str):
-        return text.replace('[', '').replace(']', '').replace(',', '')
-    else:
-        return text
-
-
-df['stemm_text_cleaned'] = df['stemm_text'].apply(lambda x: remove_phrases_stemmed(str(x), phrases_to_remove))
-df['stemm_text_cleaned'] = df['stemm_text_cleaned'].apply(lambda x: ' '.join([word for word in x.split() if word not in stop_words]))
-
-rows = []
-for i, entry in enumerate(bert_markup):
-    bert_text = entry['text']
-    bert_label = entry['label']
-
-    # Находим строку в df, соответствующую индексу из bert_markup
-    doc = df.iloc[i]
-
-    # Сохраняем данные в rows
-    doc_id = doc['id']
-    doc_name = doc['doc_name']
-    rows.append({'id': doc_id, 'doc_name': doc_name, 'label': bert_label})
-
-# Создаем DataFrame для сохранения результата
-output_df = pd.DataFrame(rows)
-
-# Сохраняем результат в CSV
-output_csv = 'bert_markup.csv'
-output_df.to_csv(output_csv, sep=';', index=False, encoding='utf-8')
-
-print(f"Файл '{output_csv}' успешно создан.")
-
-
-for index, row in df.head(50).iterrows():
-    print(f"Строка {index + 1}: {row['stemm_text_cleaned']}")
-
-# Печать первых 50 строк из bert_markup
-for index, entry in enumerate(bert_markup[:50]):
-    print(f"Строка {index + 1}:")
-    print(f"Текст: {entry['text']}")
+#
+# import json
+# import pandas as pd
+# from nltk.corpus import stopwords
+# from nltk.tokenize import word_tokenize
+# from nltk.stem import PorterStemmer
+# from gensim import corpora, models
+#
+# # Загрузка данных и стоп-слов
+# nltk.download('stopwords')
+# nltk.download('punkt')
+# stop_words = set(stopwords.words('russian'))
+#
+# # 1. Загрузка данных из JSON
+# with open('document_text_situation_preprocessed_stemming.json', 'r', encoding='utf-8') as file:
+#     preprocessed = json.load(file)
+#
+# # 2. Список фраз для удаления
+# phrases_to_remove = [
+#     "получ услуг", "какой документ нужн", "стоим услуг порядк оплат",
+#     "результ получ", "срок хран результат", "получ результат",
+#     "опис результат", "срок оказ услуг", "основан отказ",
+#     "основан приостанов услуг", "основан отказ приём документ",
+#     "подат заявлен", "информа формирован сертифик электрон вид",
+#     "част зада вопрос", "норматив документ услуг"
+# ]
+#
+#
+# def remove_phrases_and_stopwords(texts, phrases_to_remove, stop_words):
+#     cleaned_texts = []
+#     for text in texts:
+#         text_str = " ".join(text)
+#         filtered_text = text_str
+#         for phrase in phrases_to_remove:
+#             filtered_text = filtered_text.replace(phrase, '')
+#
+#         filtered_tokens = word_tokenize(filtered_text)
+#
+#         final_tokens = [word for word in filtered_tokens if word not in stop_words]
+#
+#
+#         cleaned_texts.append(final_tokens)
+#
+#     return cleaned_texts
+#
+#
+# # Применяем очистку текста
+# texts = remove_phrases_and_stopwords(preprocessed, phrases_to_remove, stop_words)
+#
+# # 4. Создание словаря и корпуса для LDA
+# dictionary = corpora.Dictionary(texts)
+# corpus = [dictionary.doc2bow(text) for text in texts]
+#
+# # 5. Создание LDA-модели
+# num_topics = 5
+# lda_model = models.LdaModel(corpus=corpus, id2word=dictionary, num_topics=num_topics, passes=20, alpha='auto', random_state=42)
+#
+# # 6. Вывод тем с ключевыми словами
+# print("Темы с ключевыми словами:")
+# for i, topic in lda_model.show_topics(num_topics=num_topics, num_words=20, formatted=False):
+#     print(f"\nТема {i + 1}:")
+#     for word, prob in topic:
+#         print(f"{word}: {prob:.3f}")
+#
+# # 7. Создание файла разметки для BERT
+# def create_bert_markup(texts, lda_model, dictionary):
+#     data = []
+#     for text in texts:
+#         bow = dictionary.doc2bow(text)  # Преобразование текста в bag-of-words
+#         topics = lda_model.get_document_topics(bow)  # Получение вероятностей тем
+#         dominant_topic = max(topics, key=lambda x: x[1])[0]  # Тема с наибольшей вероятностью
+#         data.append({
+#             "text": " ".join(text),
+#             "label": dominant_topic
+#         })
+#     return data
+#
+# # 8. Генерация разметки и сохранение в файл
+# bert_markup = create_bert_markup(texts, lda_model, dictionary)
+#
+# output_file = 'bert_markup.json'
+# with open(output_file, 'w', encoding='utf-8') as file:
+#     json.dump(bert_markup, file, ensure_ascii=False, indent=4)
+#
+# print(f"\nФайл разметки для BERT сохранен как '{output_file}'.")
+#
+# # 9. Применение разметки BERT к данным из CSV
+# csv_file = 'data/documents_situation.csv'
+# output_csv = 'bert_markup.csv'
+#
+# # Загрузка BERT разметки
+# with open(output_file, 'r', encoding='utf-8') as file:
+#     bert_markup = json.load(file)
+#
+# # Загрузка данных из CSV
+# df = pd.read_csv(csv_file, sep=';')
+#
+# # Функции очистки и обработки текста
+# def remove_phrases_stemmed(text, phrases):
+#     for phrase in phrases:
+#         text = text.replace(phrase, '')
+#     return text.strip()
+#
+# def cleaning_text(text):
+#     if isinstance(text, str):
+#         return text.replace('[', '').replace(']', '').replace(',', '')
+#     else:
+#         return text
+#
+#
+# df['stemm_text_cleaned'] = df['stemm_text'].apply(lambda x: remove_phrases_stemmed(str(x), phrases_to_remove))
+# df['stemm_text_cleaned'] = df['stemm_text_cleaned'].apply(lambda x: ' '.join([word for word in x.split() if word not in stop_words]))
+#
+# rows = []
+# for i, entry in enumerate(bert_markup):
+#     bert_text = entry['text']
+#     bert_label = entry['label']
+#
+#     # Находим строку в df, соответствующую индексу из bert_markup
+#     doc = df.iloc[i]
+#
+#     # Сохраняем данные в rows
+#     doc_id = doc['id']
+#     doc_name = doc['doc_name']
+#     rows.append({'id': doc_id, 'doc_name': doc_name, 'label': bert_label})
+#
+# # Создаем DataFrame для сохранения результата
+# output_df = pd.DataFrame(rows)
+#
+# # Сохраняем результат в CSV
+# output_csv = 'bert_markup.csv'
+# output_df.to_csv(output_csv, sep=';', index=False, encoding='utf-8')
+#
+# print(f"Файл '{output_csv}' успешно создан.")
+#
+#
+# for index, row in df.head(50).iterrows():
+#     print(f"Строка {index + 1}: {row['stemm_text_cleaned']}")
+#
+# # Печать первых 50 строк из bert_markup
+# for index, entry in enumerate(bert_markup[:50]):
+#     print(f"Строка {index + 1}:")
+#     print(f"Текст: {entry['text']}")
 
 # with open('document_text_situation.json', 'r', encoding='utf-8') as file:
 #     document_text = json.load(file)
