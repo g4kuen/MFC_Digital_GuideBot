@@ -12,12 +12,14 @@ from numpy.random import choice
 from scipy.spatial.distance import cosine
 from sklearn.feature_extraction.text import TfidfVectorizer
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes, \
+    CallbackContext
 from gensim.models import Word2Vec
 from sklearn.metrics.pairwise import euclidean_distances
 import numpy as np
 from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
+from torch.ao.nn.quantized.functional import threshold
 from transformers import pipeline
 from sklearn.metrics.pairwise import cosine_similarity
 import requests
@@ -81,10 +83,30 @@ document_vectors = vectorizer.fit_transform(preprocessed_documents)
 #
 #     similarities = cosine_similarity(query_vector, document_vectors)[0]
 #
-#     top_indices = np.argsort(similarities)[-top_n:][::-1]
+#     threshold_indices = np.argsort(similarities)[-top_n:][::-1]
 #
-#     return [(index, documents[index], similarities[index]) for index in top_indices]
+#     return [(index, documents[index], similarities[index]) for index in threshold_indices]
 
+
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    keyboard = [
+        [InlineKeyboardButton("Составить запрос ", callback_data='compose_request')],
+        [InlineKeyboardButton("Оставить отзыв ", callback_data='leave_feedback')]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
+
+
+
+async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    context.user_data['waiting_for_query'] = False
+    await update.message.reply_text("Вы остановили прием запросов, для запуска выберите 'Составить запрос' в команде /start")
+
+
+
+def split_message(message, max_length=4096):
+    return [message[i:i + max_length] for i in range(0, len(message), max_length)]
 
 
 def find_threshold_similar_documents(text, threshold=0.1):
@@ -108,7 +130,7 @@ def generate_gpt_response(service_name):
     if numbers:
         last_number = numbers[-1]
 
-    prompt = f"Документ ID {last_number}\n\nОпиши, какие шаги нужно предпринять для оформления услуги: {service_name}"
+    prompt = f"Документ ID {last_number}\n\nОпиши, какие шаги нужно предпринять для оформления услуги: {service_name.split('`')[0]}"
     #prompt = f"Документ ID {last_number}\n\nОпиши, какие шаги нужно предпринять для оформления услуги: {service_name} текст для изучения :{document_text}. текст результата:"
     #print(prompt)
 
@@ -147,28 +169,28 @@ def get_labeled_response(indices):
 
 
 
-def split_message(message, max_length=4096):
-    return [message[i:i + max_length] for i in range(0, len(message), max_length)]
-###a321312
+def generate_choice_keyboard(indices,flag):
+
+    keyboard=[]
+    if flag == True:
+        keyboard = [
+            [InlineKeyboardButton("⬅️ Назад", callback_data="prev_page"),
+             InlineKeyboardButton("Вперёд ➡️", callback_data="next_page")]
+        ]
+
+        keyboard += [
+            [InlineKeyboardButton(f"Ответ {i + 1}", callback_data=f"choose_{i + 1}")]
+            for i in range(len(indices))
+        ]
+    else:
+        keyboard = [[ InlineKeyboardButton(f"Ответ {i + 1}", callback_data=f"choose_{i + 1}")]
+            for i in range(len(indices))
+        ]
 
 
 
-def generate_choice_keyboard(indices):
-    keyboard = [
-        [InlineKeyboardButton(f"Ответ {i + 1}", callback_data=f"choose_{i + 1}")]
-        for i in range(len(indices))
-    ]
+
     return InlineKeyboardMarkup(keyboard)
-
-
-
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    keyboard = [
-        [InlineKeyboardButton("Составить запрос ", callback_data='compose_request')],
-        [InlineKeyboardButton("Оставить отзыв ", callback_data='leave_feedback')]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Выберите действие:", reply_markup=reply_markup)
 
 
 
@@ -184,7 +206,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     await query.answer()
 
     if query.data == 'compose_request':
-        await query.edit_message_text(text="Составьте запрос.")
+        await query.edit_message_text(text="Составьте запрос. Чтобы остановить прием запросов, выполните команду /stop")
         context.user_data['waiting_for_query'] = True
     if query.data == 'leave_feedback':
         await query.edit_message_text(text="Составьте отзыв.")
@@ -199,7 +221,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.edit_message_text(text="Пожалуйста, введите новый запрос.")
 
 
-def create_feedback_buttons():
+def create_query_buttons():
     keyboard = [
         [InlineKeyboardButton("Доуточнить запрос", callback_data="refine_query")],
         [InlineKeyboardButton("Сгенерировать новый запрос", callback_data="generate_new_query")]
@@ -228,14 +250,14 @@ async def handle_empty_results(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data['user_query']=current_query
 
 
-    if query_attempts < 3:
+    if query_attempts < 2:
         print(context.user_data['query_attempts'])
 
 
         if not refine_mode:
             await update.message.reply_text(
                 f"Мы не нашли похожих тем. Вы можете уточнить свой запрос или попробовать создать новый, ваш текущий запрос: {current_query}",
-                reply_markup=create_feedback_buttons()
+                reply_markup=create_query_buttons()
             )
 
     else:
@@ -262,26 +284,83 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         if 'user_query' not in context.user_data or context.user_data['user_query'] == "":
             context.user_data['user_query']=user_message
 
+        flag = False
         user_input = preprocess_text(user_message)
         preprocessed_text = preprocess_text(user_input)
         stemmed_text = stem_text(preprocessed_text)
-        top_results = find_threshold_similar_documents(stemmed_text, 0.1)
+        threshold_results = find_threshold_similar_documents(stemmed_text, 0.1)
 
-        if len(top_results) == 0:
+        if len(threshold_results) == 0:
             await handle_empty_results(update, context)
         else:
             context.user_data['user_query'] = ""
             context.user_data['query_attempts'] = 0
-            response = "\n\n".join([f"{result[1].split('`')[0]}" for result in top_results])
-            message_parts = split_message(f"Найденные похожие записи:\n\n{response}")
-            for part in message_parts:
-                await update.message.reply_text(part)
 
-            top_indices = [result[0] for result in top_results]
-            choice_keyboard = generate_choice_keyboard(top_indices)
-            context.user_data['waiting_for_query'] = False
+            # Сохранить результаты и индексы в user_data
+            context.user_data['threshold_results'] = threshold_results
+            context.user_data['current_page'] = 0
+
+
+            page_results = get_page_results(threshold_results, context.user_data['current_page'])
+            page_indices = [result[0] for result in page_results]  # Индексы для текущей страницы
+            context.user_data['threshold_indices'] = page_indices
+
+
+            if (len(threshold_results) > 5):
+                flag = True
+            else:
+                flag = False
+
+            choice_keyboard = generate_choice_keyboard(page_indices, flag)
             context.user_data['refine_mode'] = False
-            await update.message.reply_text("Выберите один из ответов:", reply_markup=choice_keyboard)
+
+            response = "\n\n".join([f"{result[1].split('`')[0]}" for result in page_results])
+
+
+            await update.message.reply_text(
+                f"Найденные похожие записи:\n\n{response}",
+                reply_markup=choice_keyboard
+            )
+
+
+
+async def button_query_handler(update: Update, context: CallbackContext):
+    query = update.callback_query
+    await query.answer()
+
+    max_page = len(context.user_data['threshold_results']) // 5
+
+    if query.data == "prev_page":
+        if context.user_data['current_page'] > 0:
+            context.user_data['current_page'] -= 1
+        else:
+            context.user_data['current_page'] = max_page
+
+    elif query.data == "next_page":
+        if context.user_data['current_page'] < max_page:
+            context.user_data['current_page'] += 1
+        else:
+            context.user_data['current_page'] = 0
+
+    current_page = context.user_data['current_page']
+    threshold_results = context.user_data['threshold_results']
+    page_results = threshold_results[current_page * 5:(current_page + 1) * 5]
+    page_indices = [result[0] for result in page_results]
+    context.user_data['threshold_indices'] = page_indices
+
+    response = "\n\n".join([f"{result[1].split('`')[0]}" for result in page_results])
+
+
+    choice_keyboard=generate_choice_keyboard(page_indices, True)
+
+    # if len(page_results) <5:
+    #     await query.edit_message_reply_markup()
+    #     await update.message.reply_text("Выберите один из ответов:", reply_markup=generate_choice_keyboard(page_results))
+
+    await query.edit_message_text(
+        text=f"Найденные похожие записи:\n\n{response}",
+        reply_markup=choice_keyboard if choice_keyboard else None
+    )
 
 
 
@@ -289,20 +368,27 @@ async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     query = update.callback_query
     await query.answer()
 
-    #print(context.user_data)
-    top_indices = context.user_data['top_indices']
-    if top_indices.size == 0:
+
+    threshold_indices = context.user_data['threshold_indices']
+    if len(threshold_indices) == 0:
         await query.edit_message_text("Ошибка: нет доступных индексов для выбора.")
         return
 
     choice_number = int(query.data.split('_')[1]) - 1
-    selected_service = documents[top_indices[choice_number]].split(" ", 1)[-1]
-    selected_index=top_indices[choice_number]
+    selected_service = documents[threshold_indices[choice_number]]#.split(" ", 1)[-1]
+    #selected_index = threshold_indices[choice_number]
 
 
     gpt_response = generate_gpt_response(selected_service)
 
-    await query.edit_message_text(f"Вы выбрали услугу: {selected_service}\n\nГенерация: {gpt_response}")
+    await query.edit_message_text(f"Вы выбрали услугу: {selected_service.split('`')[0]}\n\nГенерация: {gpt_response.split(':')[1]}")
+
+
+
+def get_page_results(results, page, page_size=5):
+    start = page * page_size
+    end = start + page_size
+    return results[start:end]
 
 
 
@@ -310,7 +396,9 @@ def main():
     application = Application.builder().token(TOKEN).build()
 
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("stop", stop))
     application.add_handler(CallbackQueryHandler(button_handler, pattern='^(compose_request|leave_feedback|refine_query|generate_new_query)$'))
+    application.add_handler(CallbackQueryHandler(button_query_handler,pattern='^(next_page|prev_page)$'))
     application.add_handler(CallbackQueryHandler(choice_handler, pattern=r'^choose_\d+$'))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
