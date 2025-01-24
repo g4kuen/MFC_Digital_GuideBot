@@ -23,11 +23,12 @@ from torch.ao.nn.quantized.functional import threshold
 from transformers import pipeline
 from sklearn.metrics.pairwise import cosine_similarity
 import requests
+from telegram.constants import ParseMode
 
 
 load_dotenv()
 TOKEN = os.getenv("TOKEN")
-#url = os.getenv("URL")
+url = os.getenv("URL")
 
 with open('data/doc_links_situation_stemming.json', 'r', encoding='utf-8') as file:
     raw_label_data = json.load(file)
@@ -108,6 +109,11 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 def split_message(message, max_length=4096):
     return [message[i:i + max_length] for i in range(0, len(message), max_length)]
 
+def split_and_escape_message(message, max_length=4096):
+    escaped_message = escape_markdown_v2(message)
+    return split_message(escaped_message, max_length)
+
+
 
 def find_threshold_similar_documents(text, threshold=0.1):
     query_vector = vectorizer.transform([text])
@@ -124,24 +130,38 @@ def find_threshold_similar_documents(text, threshold=0.1):
 
 
 
-def generate_gpt_response(service_name):
+def generate_gpt_response(service_name, context: ContextTypes.DEFAULT_TYPE, url=url):
+
     last_number = None
     numbers = re.findall(r'\d+', service_name)
     if numbers:
         last_number = numbers[-1]
 
-    prompt = f"Документ ID {last_number}\n\nОпиши, какие шаги нужно предпринять для оформления услуги: {service_name.split('`')[0]}"
+
+    URL = f"{url}/generate-roadmap/"
+    user_request =  context.user_data.get('user_query')
+    document_id = last_number
+    #prompt = f"Документ ID {last_number}\n\nОпиши, какие шаги нужно предпринять для оформления услуги: {service_name.split('`')[0]}"
     #prompt = f"Документ ID {last_number}\n\nОпиши, какие шаги нужно предпринять для оформления услуги: {service_name} текст для изучения :{document_text}. текст результата:"
     #print(prompt)
+    print(user_request)
+    data = {"user_request":user_request,
+            "document_id": document_id}
 
-    #   data = {"text": prompt}
-    #response = requests.post(url, json=data)
+    headers = {
+        "Content-Type": "application/json"
+    }
 
-    # generated_text = response.json()['response']
-    # generated_text = generated_text[len(prompt):]
+    response = requests.post(URL, json = data,headers=headers)
 
-    generated_text = prompt # пока ответов не будет
-    return generated_text
+    if response.status_code==200:
+        return response.json()
+    else:
+        raise Exception(f"Request failed with status code {response.status_code}: {response.text}")
+
+
+
+
 
 
 
@@ -379,9 +399,14 @@ async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     #selected_index = threshold_indices[choice_number]
 
 
-    gpt_response = generate_gpt_response(selected_service)
+    gpt_response = generate_gpt_response(selected_service,context)
 
-    await query.edit_message_text(f"Вы выбрали услугу: {selected_service.split('`')[0]}\n\nГенерация: {gpt_response.split(':')[1]}")
+
+    await query.edit_message_text(text=f"Вы выбрали услугу: {escape_markdown_v2(selected_service.split('`')[0])}\n\nГенерация: {escape_markdown_v2(gpt_response["roadma"])}",  parse_mode=ParseMode.MARKDOWN_V2)
+
+    # results = split_message((gpt_response["roadmap"]))
+    # for part in results:
+    #     await query.edit_message_text(text=f"Вы выбрали услугу: {escape_markdown_v2(selected_service.split('`')[0])}\n\nГенерация: {escape_markdown_v2(part)}",parse_mode=ParseMode.MARKDOWN_V2)
 
 
 
@@ -390,7 +415,9 @@ def get_page_results(results, page, page_size=5):
     end = start + page_size
     return results[start:end]
 
-
+def escape_markdown_v2(text):
+    reserved_chars = r'([\[\]\(\)\{\}\#\+\-\=\|\!\.\~])'
+    return re.sub(reserved_chars, r'\\\1', text)
 
 def main():
     application = Application.builder().token(TOKEN).build()
