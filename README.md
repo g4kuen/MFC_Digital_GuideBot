@@ -19,7 +19,7 @@ pip install -r requirements.txt
 ### Необходимо создание .env и вписывание следующих параметров:
 ```bash
 TOKEN = ваш токен телеграмм-бота
-URL = ваша ссылка на бекенд составляющую проекта github.com/rendei/MFC_Digital_Guide_Backend
+URL = ваша URL ссылка на бекенд составляющую проекта (github.com/rendei/MFC_Digital_Guide_Backend)
 ```
 
 ### Запуск бота
