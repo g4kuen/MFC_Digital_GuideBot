@@ -7,7 +7,7 @@ from telegram.constants import ParseMode
 from config import url
 from utils import get_page_results, convert_markdown_to_html
 from keyboards import generate_choice_keyboard, create_query_buttons
-from response import search_response
+from response import search_response, generate_gpt_response
 
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -81,8 +81,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             context.user_data['refine_mode'] = False
 
             response = "\n\n".join([f"{result[1].split('`')[0]}" for result in page_results])
-
-
 
             await update.message.reply_text(
                 text=f"Найденные похожие записи:\n\n{response}",
@@ -170,17 +168,16 @@ async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     document_id = context.user_data['search_id'][indices[choice_number]]
 
 
-    #gpt_response = await generate_gpt_response(document_id,context, url)
-    #answer = (gpt_response['roadmap'])
+    gpt_response = await generate_gpt_response(document_id,context, url)
+    answer = (gpt_response['roadmap'])
 
     #formated_service_name = convert_markdown_to_html(selected_service[1])
    # formated_answer =convert_markdown_to_html(answer)
-    text = "**найденные похожие записи**"
-    formatted_text = convert_markdown_to_html(text)
+    #text = "**найденные похожие записи**"
+    formatted_selected_service = convert_markdown_to_html(selected_service[1])
+    formatted_answer = convert_markdown_to_html(answer)
     await query.edit_message_text(
-        #text="<b>Вы выбрали услугу</b>:" + convert_markdown_to_html(selected_service[1])+"\n\nГенерация:" +convert_markdown_to_html(answer),
-        text=f"<b>Вы выбрали услугу</b>: {formatted_text}\n\nГенерация: {formatted_text}",
-       #text=f"<b>Вы выбрали услугу</b>: {selected_service[1]}\n\nГенерация: {answer}",
+        text=f"<b>Вы выбрали услугу</b>: {formatted_selected_service} \n\nГенерация: {formatted_answer}",
         parse_mode=ParseMode.HTML,
         reply_markup=None
     )
