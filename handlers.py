@@ -144,7 +144,7 @@ async def button_query_handler(update: Update, context: CallbackContext):
     page_indices = [result[0] for result in page_results]
     context.user_data['indices'] = page_indices
 
-    response = "\n\n".join([f"{result[1].split('`')[0]}" for result in page_results])
+    response = "\n\n".join([f"{i + 1}. {result[1].split('`')[0]}" for i, result in enumerate(page_results)])
 
     choice_keyboard=generate_choice_keyboard(page_indices, True)
 
