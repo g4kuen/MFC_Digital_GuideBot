@@ -80,7 +80,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             choice_keyboard = generate_choice_keyboard(page_indices, flag)
             context.user_data['refine_mode'] = False
 
-            response = "\n\n".join([f"{result[1].split('`')[0]}" for result in page_results])
+            response = "\n\n".join([f"{i + 1}. {result[1].split('`')[0]}" for i, result in enumerate(page_results)])
 
             await update.message.reply_text(
                 text=f"Найденные похожие записи:\n\n{response}",
