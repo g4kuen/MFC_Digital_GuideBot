@@ -154,33 +154,49 @@ async def button_query_handler(update: Update, context: CallbackContext):
         reply_markup=choice_keyboard if choice_keyboard else None
     )
 
+import asyncio
+
 async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
-    await query.answer()
 
-    indices = context.user_data['indices']
-    if len(indices) == 0:
-        await query.edit_message_text("Ошибка: нет доступных индексов для выбора.")
-        return
+    try:
+        await query.answer()
 
-    choice_number = int(query.data.split('_')[1]) - 1
-    selected_service = context.user_data['search_results'][indices[choice_number]]
-    document_id = context.user_data['search_id'][indices[choice_number]]
+        indices = context.user_data.get('indices', [])
+        if not indices:
+            await query.edit_message_text("Ошибка: нет доступных индексов для выбора.")
+            return
 
+        choice_number = int(query.data.split('_')[1]) - 1
+        if choice_number < 0 or choice_number >= len(indices):
+            await query.edit_message_text("Ошибка: неверный выбор.")
+            return
 
-    gpt_response = await generate_gpt_response(document_id,context, url)
-    answer = (gpt_response['roadmap'])
+        selected_service = context.user_data['search_results'][indices[choice_number]]
+        document_id = context.user_data['search_id'][indices[choice_number]]
 
-    #formated_service_name = convert_markdown_to_html(selected_service[1])
-   # formated_answer =convert_markdown_to_html(answer)
-    #text = "**найденные похожие записи**"
-    formatted_selected_service = convert_markdown_to_html(selected_service[1])
-    formatted_answer = convert_markdown_to_html(answer)
-    await query.edit_message_text(
-        text=f"<b>Вы выбрали услугу</b>: {formatted_selected_service} \n\nГенерация: {formatted_answer}",
-        parse_mode=ParseMode.HTML,
-        reply_markup=None
-    )
+        async def fetch_gpt_and_edit():
+            try:
+                gpt_response = await generate_gpt_response(document_id, context, url)
+                answer = gpt_response.get('roadmap', "Ошибка: ответ не получен.")
+
+                formatted_selected_service = convert_markdown_to_html(selected_service[1])
+                formatted_answer = convert_markdown_to_html(answer)
+
+                await query.edit_message_text(
+                    text=f"<b>Вы выбрали услугу</b>: {formatted_selected_service} \n\n{formatted_answer}",
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=None
+                )
+            except Exception as e:
+                print(f"Ошибка в fetch_gpt_and_edit: {e}")
+                await query.edit_message_text("Произошла ошибка при получении ответа. Попробуйте снова.")
+
+        asyncio.create_task(fetch_gpt_and_edit())
+
+    except Exception as e:
+        print(f"Ошибка в choice_handler: {e}")
+        await query.edit_message_text("Произошла ошибка. Попробуйте снова.")
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
