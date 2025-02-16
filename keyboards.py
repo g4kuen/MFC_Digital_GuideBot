@@ -4,7 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 def generate_choice_keyboard(indices,flag):
 
     keyboard=[]
-    if flag == True:
+    if flag == True:#надо убрать
         keyboard = [
             [InlineKeyboardButton("⬅️ Назад", callback_data="prev_page"),
              InlineKeyboardButton("Вперёд ➡️", callback_data="next_page")]
