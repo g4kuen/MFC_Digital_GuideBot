@@ -1,3 +1,5 @@
+from os import remove
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, \
     CallbackContext
@@ -8,7 +10,7 @@ from config import url
 from utils import get_page_results, convert_markdown_to_html
 from keyboards import generate_choice_keyboard, create_query_buttons
 from response import search_response, generate_gpt_response
-
+import asyncio
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -24,7 +26,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await query.edit_message_text(text="Составьте запрос. Чтобы остановить прием запросов, выполните команду /stop")
         context.user_data['waiting_for_query'] = True
     if query.data == 'leave_feedback':
-        await query.edit_message_text(text="Составьте отзыв.")
+        await query.edit_message_text(text="Составьте отзыв.",)
+        context.user_data['waiting_for_query'] = False
         context.user_data['waiting_for_feedback'] = True
     if query.data == 'refine_query':
         context.user_data['refine_mode'] = True
@@ -154,7 +157,7 @@ async def button_query_handler(update: Update, context: CallbackContext):
         reply_markup=choice_keyboard if choice_keyboard else None
     )
 
-import asyncio
+
 
 async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
@@ -175,19 +178,31 @@ async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         selected_service = context.user_data['search_results'][indices[choice_number]]
         document_id = context.user_data['search_id'][indices[choice_number]]
 
+        formatted_selected_service = convert_markdown_to_html(selected_service[1])
+
+        await query.edit_message_text(
+            text=f"<b>Вы выбрали услугу</b>: {formatted_selected_service} \n\nПожалуйста, подождите ответа",
+            parse_mode=ParseMode.HTML,
+            reply_markup=None
+        )
+
+
+
         async def fetch_gpt_and_edit():
             try:
                 gpt_response = await generate_gpt_response(document_id, context, url)
                 answer = gpt_response.get('roadmap', "Ошибка: ответ не получен.")
 
-                formatted_selected_service = convert_markdown_to_html(selected_service[1])
                 formatted_answer = convert_markdown_to_html(answer)
+
 
                 await query.edit_message_text(
                     text=f"<b>Вы выбрали услугу</b>: {formatted_selected_service} \n\n{formatted_answer}",
                     parse_mode=ParseMode.HTML,
                     reply_markup=None
                 )
+
+
             except Exception as e:
                 print(f"Ошибка в fetch_gpt_and_edit: {e}")
                 await query.edit_message_text("Произошла ошибка при получении ответа. Попробуйте снова.")
