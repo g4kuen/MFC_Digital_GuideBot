@@ -185,7 +185,7 @@ async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             parse_mode=ParseMode.HTML,
             reply_markup=None
         )
-
+#
         async def fetch_gpt_and_edit():
             try:
                 gpt_response = await generate_gpt_response(document_id, context, url)
