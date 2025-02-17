@@ -13,6 +13,7 @@ def main():
     application.add_handler(CallbackQueryHandler(choice_handler, pattern=r'^choose_\d+$'))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
+
     print("started")
     application.run_polling()
 
