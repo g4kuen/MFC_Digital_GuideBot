@@ -213,7 +213,7 @@ async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             )
             context.user_data["is_gpt_active"] = True
             asyncio.create_task(fetch_gpt_and_edit())
-#
+
 
     except Exception as e:
         print(f"Ошибка в choice_handler: {e}")
