@@ -8,10 +8,14 @@ def main():
 
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("stop", stop))
+
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
     application.add_handler(CallbackQueryHandler(button_handler, pattern='^(compose_request|leave_feedback|refine_query|generate_new_query)$'))
     application.add_handler(CallbackQueryHandler(button_query_handler,pattern='^(next_page|prev_page)$'))
     application.add_handler(CallbackQueryHandler(choice_handler, pattern=r'^choose_\d+$'))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
+
 
 
     print("started")

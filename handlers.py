@@ -7,9 +7,9 @@ from telegram.ext import ContextTypes, \
 from telegram.constants import ParseMode
 
 from config import url
-from utils import get_page_results, convert_markdown_to_html
+from utils import get_page_results, convert_markdown_to_html, fetch_gpt_and_edit
 from keyboards import generate_choice_keyboard, create_query_buttons
-from response import search_response, generate_gpt_response
+from response import search_response, fake_search_response
 import asyncio
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -40,6 +40,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    print("1")
     if context.user_data.get('waiting_for_feedback'):
         feedback = update.message.text
         ###обработка для feedback
@@ -48,23 +49,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
     if context.user_data.get('waiting_for_query'):
         user_message = update.message.text
+        context.user_data['user_query'] = user_message
         if 'query_attempts' not in context.user_data:
             context.user_data['query_attempts'] = 1
         if 'user_query' in context.user_data:
             user_message = context.user_data['user_query'] + " " + user_message
         if 'user_query' not in context.user_data or context.user_data['user_query'] == "":
-            context.user_data['user_query']=user_message
+            context.user_data['user_query'] = user_message
 
         flag = False
 
-        response = await search_response(context, url)
+        #response = await search_response(context, url)
+        response = await fake_search_response(context, url)
         results = response
 
 
         if len(results) == 0:
             await handle_empty_results(update, context)
         else:
-            context.user_data['user_query'] = ""
+
             context.user_data['query_attempts'] = 0
 
             context.user_data['results'] = results
@@ -90,6 +93,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 reply_markup=choice_keyboard if choice_keyboard else None,
 
             )
+            print("1-end")
 
 async def handle_empty_results(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     query_attempts = context.user_data.get('query_attempts')
@@ -158,12 +162,12 @@ async def button_query_handler(update: Update, context: CallbackContext):
     )
 
 
-
 async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    print("2")
     query = update.callback_query
+    user_request = context.user_data.get("user_query")
 
     try:
-
         await query.answer()
 
         indices = context.user_data.get('indices', [])
@@ -180,44 +184,27 @@ async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         document_id = context.user_data['search_id'][indices[choice_number]]
 
         formatted_selected_service = convert_markdown_to_html(selected_service[1])
+        print("2-end")
+        if "active_query" not in context.user_data or not context.user_data["active_query"]:
+            context.user_data["current_select"] = formatted_selected_service
 
-        async def fetch_gpt_and_edit():
-            try:
-                gpt_response = await generate_gpt_response(document_id, context, url)
-                answer = gpt_response.get('roadmap', "Ошибка: ответ не получен.")
-                context.user_data["current_select"] = formatted_selected_service
-                formatted_answer = convert_markdown_to_html(answer)
-
-                await query.edit_message_text(
-                    text=f"<b>Вы выбрали услугу</b>: {formatted_selected_service} \n\n{formatted_answer}",
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=None
-                )
-                context.user_data["is_gpt_active"] = False
-
-            except Exception as e:
-                print(f"Ошибка в fetch_gpt_and_edit: {e}")
-                await query.edit_message_text("Произошла ошибка при получении ответа. Попробуйте снова.")
-
-        if context.user_data["is_gpt_active"]:
-            await query.edit_message_text(
-                text=f"<b>Вы уже выбрали услугу</b>: {context.user_data["current_select"]} \n\nПожалуйста, подождите прошлого ответа",
-                parse_mode=ParseMode.HTML,
-                reply_markup=None
-            )
-        else:
             await query.edit_message_text(
                 text=f"<b>Вы выбрали услугу</b>: {formatted_selected_service} \n\nПожалуйста, подождите ответа",
                 parse_mode=ParseMode.HTML,
                 reply_markup=None
             )
-            context.user_data["is_gpt_active"] = True
-            asyncio.create_task(fetch_gpt_and_edit())
+            asyncio.create_task(fetch_gpt_and_edit(update, context, formatted_selected_service, document_id, url))
+        else:
+            await query.edit_message_text(
+                text=f"<b>Вы уже выбрали услугу</b>: {context.user_data['current_select']} \n\nПожалуйста, подождите прошлого ответа",
+                parse_mode=ParseMode.HTML,
+                reply_markup=None
+            )
 
 
     except Exception as e:
         print(f"Ошибка в choice_handler: {e}")
-        await query.edit_message_text("Произошла ошибка. Попробуйте снова.")
+        await query.edit_message_text("Произошла ошибка при обработке выбора.")
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

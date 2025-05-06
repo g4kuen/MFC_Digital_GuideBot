@@ -1,3 +1,6 @@
+import asyncio
+import random
+
 from telegram.ext import ContextTypes
 
 import aiohttp
@@ -26,6 +29,23 @@ async def generate_gpt_response(document_id, context: ContextTypes.DEFAULT_TYPE,
                 raise Exception(f"Request failed with status code {response.status}: {await response.text()}")
 
 
+async def fake_generate_gpt_response(document_id, context: ContextTypes.DEFAULT_TYPE, url):
+    """Заглушка для реального GPT запроса с рандомной задержкой"""
+    # Имитируем случайную задержку сети (от 3 до 10 секунд)
+    delay = random.uniform(10.0, 40.0)
+    await asyncio.sleep(delay)
+
+    # Фиксированный ответ-заглушка
+    return {
+        'roadmap': "## Ваш ответ готов\n\n"
+                   "1. Пример первого шага\n"
+                   "2. Пример второго шага\n"
+                   "3. Финальное действие\n\n"
+                   "*Это тестовый ответ, сгенерированный заглушкой*",
+        'document_id': document_id,
+        'processing_time': delay
+    }
+
 
 
 
@@ -36,7 +56,6 @@ async def search_response(context: ContextTypes.DEFAULT_TYPE, url: str) -> List[
     query_params = {
         "query": context.user_data["user_query"]
     }
-
     async with aiohttp.ClientSession() as session:
         async with session.get(base_url + search_endpoint, params=query_params) as response:
             if response.status == 200:
@@ -56,3 +75,26 @@ async def search_response(context: ContextTypes.DEFAULT_TYPE, url: str) -> List[
             else:
                 print(f"Ошибка при отправке запроса {response.status}: {await response.text()}")
                 return []
+
+
+async def fake_search_response(context: ContextTypes.DEFAULT_TYPE, url: str) -> List[Tuple[int, str]]:
+    await asyncio.sleep(random.uniform(1.0, 3.0))
+
+    fake_services = [
+        "Получение справки о несудимости",
+        "Оформление загранпаспорта",
+        "Регистрация по месту жительства",
+        "Постановка на налоговый учёт",
+        "Оформление ИП",
+    ]
+
+    num_results = 5
+    results = random.sample(fake_services, num_results)
+
+    formatted_results = [(i, results[i]) for i in range(num_results)]
+    document_ids = [f"doc_{random.randint(1000, 9999)}" for _ in range(num_results)]
+
+    context.user_data['search_results'] = formatted_results
+    context.user_data['search_id'] = document_ids
+
+    return formatted_results
