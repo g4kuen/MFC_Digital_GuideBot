@@ -7,6 +7,8 @@ import aiohttp
 from typing import List, Tuple
 from telegram.ext import ContextTypes
 
+from MFC_Digital_GuideBot.logger import logger
+
 
 async def generate_gpt_response(document_id, context: ContextTypes.DEFAULT_TYPE, url):
     URL = f"{url}/generate-roadmap/"
@@ -30,12 +32,9 @@ async def generate_gpt_response(document_id, context: ContextTypes.DEFAULT_TYPE,
 
 
 async def fake_generate_gpt_response(document_id, context: ContextTypes.DEFAULT_TYPE, url):
-    """Заглушка для реального GPT запроса с рандомной задержкой"""
-    # Имитируем случайную задержку сети (от 3 до 10 секунд)
     delay = random.uniform(10.0, 40.0)
     await asyncio.sleep(delay)
 
-    # Фиксированный ответ-заглушка
     return {
         'roadmap': "## Ваш ответ готов\n\n"
                    "1. Пример первого шага\n"
@@ -73,7 +72,8 @@ async def search_response(context: ContextTypes.DEFAULT_TYPE, url: str) -> List[
 
                 return formatted_results
             else:
-                print(f"Ошибка при отправке запроса {response.status}: {await response.text()}")
+                logger.info(f"Ошибка при отправке запроса {response.status}: {await response.text()}")
+                #print(f"Ошибка при отправке запроса {response.status}: {await response.text()}")
                 return []
 
 

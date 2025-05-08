@@ -1,4 +1,5 @@
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
+from logger import logger
 
 from config import TOKEN
 from handlers import button_handler, choice_handler, handle_message, start, stop, button_query_handler
@@ -18,7 +19,7 @@ def main():
 
 
 
-    print("started")
+    logger.info("BOT STARTED")
     application.run_polling()
 
 
