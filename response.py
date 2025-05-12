@@ -32,7 +32,7 @@ async def generate_gpt_response(document_id, context: ContextTypes.DEFAULT_TYPE,
 
 
 async def fake_generate_gpt_response(document_id, context: ContextTypes.DEFAULT_TYPE, url):
-    delay = random.uniform(10.0, 40.0)
+    delay = random.uniform(10.0, 15.0)
     await asyncio.sleep(delay)
 
     return {

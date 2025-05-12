@@ -5,7 +5,7 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from MFC_Digital_GuideBot.keyboards import generate_choice_keyboard, create_query_buttons
+from MFC_Digital_GuideBot.keyboards import create_choice_keyboard#, create_query_buttons
 from MFC_Digital_GuideBot.logger import logger
 from MFC_Digital_GuideBot.response import generate_gpt_response, search_response, fake_generate_gpt_response, \
     fake_search_response
@@ -87,9 +87,9 @@ async def search_and_edit(update: Update, context: ContextTypes.DEFAULT_TYPE, ur
         #response = await search_response(context, url)
         results = response
 
-        if len(results) == 0:
-            await handle_empty_results(update, context)
-            return
+        # if len(results) == 0:
+        #     await handle_empty_results(update, context)
+        #     return
 
         context.user_data.update({
             'query_attempts': 0,
@@ -100,7 +100,7 @@ async def search_and_edit(update: Update, context: ContextTypes.DEFAULT_TYPE, ur
 
         page_results = get_page_results(results, 0)
         flag = len(results) > 5
-        choice_keyboard = generate_choice_keyboard(context.user_data['indices'], flag)
+        choice_keyboard = create_choice_keyboard(context.user_data['indices'], flag)
 
         response_text = "\n\n".join(
             f"{i + 1}. {result[1].split('`')[0]}"
@@ -142,11 +142,17 @@ async def handle_empty_results(update: Update, context: ContextTypes.DEFAULT_TYP
         context.user_data['user_query']=current_query
 
 
+    # if query_attempts < 2:
+    #     if not refine_mode:
+    #         await update.message.reply_text(
+    #             f"Мы не нашли похожих тем. Вы можете уточнить свой запрос или попробовать создать новый, ваш текущий запрос: {current_query}",
+    #             reply_markup=create_query_buttons()
+    #         )
     if query_attempts < 2:
         if not refine_mode:
             await update.message.reply_text(
-                f"Мы не нашли похожих тем. Вы можете уточнить свой запрос или попробовать создать новый, ваш текущий запрос: {current_query}",
-                reply_markup=create_query_buttons()
+                f"Мы не нашли похожих тем. Задайте запрос заново.",
+                reply_markup=None
             )
     else:
         context.user_data['query_attempts'] = 0

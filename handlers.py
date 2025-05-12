@@ -6,11 +6,10 @@ from telegram.ext import ContextTypes, \
 
 from telegram.constants import ParseMode
 
+from MFC_Digital_GuideBot.keyboards import create_format_keyboard
 from MFC_Digital_GuideBot.logger import logger
 from config import url
 from utils import fetch_gpt_and_edit, search_and_edit, get_page_results
-from keyboards import generate_choice_keyboard, create_query_buttons
-from response import search_response, fake_search_response
 import asyncio
 
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -96,7 +95,8 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 #             )
 #             print("1-end")
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+
+async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
 
 
@@ -122,39 +122,39 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.info(f"User {user.id} task started in background (1-middle)")
 
 
-async def button_query_handler(update: Update, context: CallbackContext):
-    query = update.callback_query
-    await query.answer()
-
-    max_page = len(context.user_data['results']) // 5
-
-    if query.data == "prev_page":
-        if context.user_data['current_page'] > 0:
-            context.user_data['current_page'] -= 1
-        else:
-            context.user_data['current_page'] = max_page
-
-    elif query.data == "next_page":
-        if context.user_data['current_page'] < max_page:
-            context.user_data['current_page'] += 1
-        else:
-            context.user_data['current_page'] = 0
-
-    current_page = context.user_data['current_page']
-    results = context.user_data['results']
-    page_results = results[current_page * 5:(current_page + 1) * 5]
-    page_indices = [result[0] for result in page_results]
-    context.user_data['indices'] = page_indices
-
-    response = "\n\n".join([f"{i + 1}. {result[1].split('`')[0]}" for i, result in enumerate(page_results)])
-
-    choice_keyboard=generate_choice_keyboard(page_indices, True)
-
-
-    await query.edit_message_text(
-        text=f"Найденные похожие записи:\n\n{response}",
-        reply_markup=choice_keyboard if choice_keyboard else None
-    )
+# async def button_query_handler(update: Update, context: CallbackContext):
+#     query = update.callback_query
+#     await query.answer()
+#
+#     max_page = len(context.user_data['results']) // 5
+#
+#     if query.data == "prev_page":
+#         if context.user_data['current_page'] > 0:
+#             context.user_data['current_page'] -= 1
+#         else:
+#             context.user_data['current_page'] = max_page
+#
+#     elif query.data == "next_page":
+#         if context.user_data['current_page'] < max_page:
+#             context.user_data['current_page'] += 1
+#         else:
+#             context.user_data['current_page'] = 0
+#
+#     current_page = context.user_data['current_page']
+#     results = context.user_data['results']
+#     page_results = results[current_page * 5:(current_page + 1) * 5]
+#     page_indices = [result[0] for result in page_results]
+#     context.user_data['indices'] = page_indices
+#
+#     response = "\n\n".join([f"{i + 1}. {result[1].split('`')[0]}" for i, result in enumerate(page_results)])
+#
+#     choice_keyboard=generate_choice_keyboard(page_indices, True)
+#
+#
+#     await query.edit_message_text(
+#         text=f"Найденные похожие записи:\n\n{response}",
+#         reply_markup=choice_keyboard if choice_keyboard else None
+#     )
 
 
 async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -178,30 +178,59 @@ async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         selected_service = context.user_data['search_results'][indices[choice_number]]
         document_id = context.user_data['search_id'][indices[choice_number]]
 
+        context.user_data["selected_service"] = selected_service
+        context.user_data["document_id"] = document_id
+
+
 
         logger.info(f"User {user.id} ended choice (2-end)")
         if "active_query" not in context.user_data or not context.user_data["active_query"]:
             context.user_data["current_select"] = selected_service[1]
-
             await query.edit_message_text(
-                text=f"<b>Вы выбрали услугу</b>: {selected_service[1]} \n\nПожалуйста, подождите ответа",
+                text=f"<b>Вы выбрали услугу</b>: {selected_service[1]} \n\nПожалуйста, выберите подходящую для вас длину инструкции (выбор будет влиять на размер и скорость ответа)",
                 parse_mode=ParseMode.HTML,
-                reply_markup=None
+                reply_markup=create_format_keyboard()
             )
-            asyncio.create_task(fetch_gpt_and_edit(update, context, selected_service[1], document_id, url))
+            # await query.edit_message_text(
+            #     text=f"<b>Вы выбрали услугу</b>: {selected_service[1]} \n\nПожалуйста, подождите ответа",
+            #     parse_mode=ParseMode.HTML,
+            #     reply_markup=None
+            # )
+            # asyncio.create_task(fetch_gpt_and_edit(update, context, selected_service[1], document_id, url))
         else:
-
             await query.edit_message_text(
                 text=f"<b>Вы уже выбрали услугу</b>: {context.user_data['current_select']} \n\nПожалуйста, подождите прошлого ответа",
                 parse_mode=ParseMode.HTML,
                 reply_markup=None
             )
-            logger.info(f"User {user.id} ended choice, his generate not ended (2-end), generate prevented")
+            logger.info(f"User {user.id} ended choice, his generate not ended (2-end), new generate prevented")
 
 
     except Exception as e:
         logger.info(f"User {user.id} reached Exception in choice_handler: {e} ;(2e)")
         await query.edit_message_text("Произошла ошибка при обработке выбора.")
+
+async def format_handler(update: Update, context:ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    user = update.effective_user
+    await query.answer()
+
+    selected_service = context.user_data["selected_service"]
+    document_id = context.user_data["document_id"]
+
+    callback_data = query.data
+
+    if callback_data == "format_long":
+        logger.info(f"User {user.id} chose LONG format LLM generate (1.5 end)")
+        asyncio.create_task(fetch_gpt_and_edit(update, context, selected_service[1], document_id, url))
+        await query.edit_message_text(text="Выбран формат: Подробный ответ, подождите генерации инструкции")
+
+    elif callback_data == "format_short":
+        logger.info(f"User {user.id} chose SHORT format LLM generate (1.5 end)")
+        asyncio.create_task(fetch_gpt_and_edit(update, context, selected_service[1], document_id, url))
+        await query.edit_message_text(text="Выбран формат: Краткий ответ, подождите генерации инструкции")
+
+
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

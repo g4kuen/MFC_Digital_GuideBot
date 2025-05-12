@@ -1,7 +1,7 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def generate_choice_keyboard(indices,flag):
+def create_choice_keyboard(indices,flag):
 
     keyboard=[]
     if flag == True:
@@ -23,9 +23,18 @@ def generate_choice_keyboard(indices,flag):
     return InlineKeyboardMarkup(keyboard)
 
 
-def create_query_buttons():
+# def create_query_buttons():
+#     keyboard = [
+#         [InlineKeyboardButton("Доуточнить запрос", callback_data="refine_query")],
+#         [InlineKeyboardButton("Сгенерировать новый запрос", callback_data="generate_new_query")]
+#     ]
+#     return InlineKeyboardMarkup(keyboard)
+
+
+def create_format_keyboard():
     keyboard = [
-        [InlineKeyboardButton("Доуточнить запрос", callback_data="refine_query")],
-        [InlineKeyboardButton("Сгенерировать новый запрос", callback_data="generate_new_query")]
+        [InlineKeyboardButton("Ответ в кратком формате", callback_data="format_short")],
+        [InlineKeyboardButton("Ответ в подробном формате", callback_data="format_long")]
     ]
     return InlineKeyboardMarkup(keyboard)
+
