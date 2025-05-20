@@ -38,3 +38,11 @@ MFC_Digital_GuideBot/
 │── requirements.txt       # Зависимости проекта
 │── README.md              # Данный файл
 ```
+
+## Docker
+```
+docker build -t bot .
+
+docker run -d --name bot --env-file .env bot
+```
+

@@ -5,9 +5,9 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from MFC_Digital_GuideBot.keyboards import create_choice_keyboard#, create_query_buttons
-from MFC_Digital_GuideBot.logger import logger
-from MFC_Digital_GuideBot.response import generate_gpt_response, search_response, fake_generate_gpt_response, \
+from keyboards import create_choice_keyboard#, create_query_buttons
+from logger import logger
+from response import generate_gpt_response, search_response, fake_generate_gpt_response, \
     fake_search_response
 
 
@@ -53,8 +53,8 @@ async def fetch_gpt_and_edit(update: Update, context: ContextTypes.DEFAULT_TYPE,
         async with context.bot_data["locks"][user_id]:
             context.user_data["active_query"] = True
 
-            gpt_response = await fake_generate_gpt_response(document_id, context, url)
-            #gpt_response = await generate_gpt_response(document_id, context, url)
+            #gpt_response = await fake_generate_gpt_response(document_id, context, url)
+            gpt_response = await generate_gpt_response(document_id, context, url)
             logger.info(f"bot got users {user.id} LLM generate (3-middle)")
 
             answer = gpt_response.get('roadmap', "Ошибка: ответ не получен.")
@@ -83,8 +83,8 @@ async def search_and_edit(update: Update, context: ContextTypes.DEFAULT_TYPE, ur
     user = update.effective_user
     try:
 
-        response = await fake_search_response(context, url)
-        #response = await search_response(context, url)
+        #response = await fake_search_response(context, url)
+        response = await search_response(context, url)
         results = response
 
         # if len(results) == 0:

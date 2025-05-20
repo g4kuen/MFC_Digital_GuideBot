@@ -6,8 +6,8 @@ from telegram.ext import ContextTypes, \
 
 from telegram.constants import ParseMode
 
-from MFC_Digital_GuideBot.keyboards import create_format_keyboard
-from MFC_Digital_GuideBot.logger import logger
+from keyboards import create_format_keyboard
+from logger import logger
 from config import url
 from utils import fetch_gpt_and_edit, search_and_edit, get_page_results
 import asyncio
@@ -222,11 +222,15 @@ async def format_handler(update: Update, context:ContextTypes.DEFAULT_TYPE) -> N
 
     if callback_data == "format_long":
         logger.info(f"User {user.id} chose LONG format LLM generate (1.5 end)")
+
+        context.user_data["is_short_request"] = False
         asyncio.create_task(fetch_gpt_and_edit(update, context, selected_service[1], document_id, url))
         await query.edit_message_text(text="Выбран формат: Подробный ответ, подождите генерации инструкции")
 
     elif callback_data == "format_short":
         logger.info(f"User {user.id} chose SHORT format LLM generate (1.5 end)")
+
+        context.user_data["is_short_request"] = True
         asyncio.create_task(fetch_gpt_and_edit(update, context, selected_service[1], document_id, url))
         await query.edit_message_text(text="Выбран формат: Краткий ответ, подождите генерации инструкции")
 

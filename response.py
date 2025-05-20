@@ -7,16 +7,19 @@ import aiohttp
 from typing import List, Tuple
 from telegram.ext import ContextTypes
 
-from MFC_Digital_GuideBot.logger import logger
+from logger import logger
 
 
 async def generate_gpt_response(document_id, context: ContextTypes.DEFAULT_TYPE, url):
     URL = f"{url}/generate-roadmap/"
     user_request = context.user_data.get("user_query")
+    is_short_request = context.user_data.get("is_short_request")
+    print(is_short_request)
 
     data = {
         "user_request": user_request,
-        "document_id": document_id
+        "document_id": document_id,
+        "is_short_request": is_short_request
     }
 
     headers = {
@@ -34,7 +37,8 @@ async def generate_gpt_response(document_id, context: ContextTypes.DEFAULT_TYPE,
 async def fake_generate_gpt_response(document_id, context: ContextTypes.DEFAULT_TYPE, url):
     delay = random.uniform(10.0, 15.0)
     await asyncio.sleep(delay)
-
+    is_short_request = context.user_data.get("is_short_request")
+    print(is_short_request)
     return {
         'roadmap': "## Ваш ответ готов\n\n"
                    "1. Пример первого шага\n"
