@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+    volumes:
+      - ./.env:/bot/.env
+      - ./logs.log:/bot/logs.log
+    restart: unless-stopped
