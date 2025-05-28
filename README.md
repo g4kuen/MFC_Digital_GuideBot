@@ -22,11 +22,6 @@ TOKEN = ваш токен телеграмм-бота
 URL = ваша URL ссылка на бекенд составляющую проекта (github.com/rendei/MFC_Digital_Guide_Backend)
 ```
 
-### Запуск бота
-```bash
-python main.py
-```
-
 ## Структура проекта
 ```
 MFC_Digital_GuideBot/
@@ -44,5 +39,17 @@ MFC_Digital_GuideBot/
 docker build -t bot .
 
 docker run -d --name bot --env-file .env bot
+```
+
+## Docker-compose
+```
+docker-compose up --build
+
+```
+
+## Важный момент
+```
+Бэкенд-составляющая и бот-составляющая должны находиться в одной сети, поэтому некоторые настройки запуска Docker могут потребовать изменений. Имейте это в виду.
+
 ```
 
