@@ -186,10 +186,12 @@ async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.info(f"User {user.id} ended choice (2-end)")
         if "active_query" not in context.user_data or not context.user_data["active_query"]:
             context.user_data["current_select"] = selected_service[1]
+            asyncio.create_task(fetch_gpt_and_edit(update, context, selected_service[1], document_id, url))# пока что
             await query.edit_message_text(
-                text=f"<b>Вы выбрали услугу</b>: {selected_service[1]} \n\nПожалуйста, выберите подходящую для вас длину инструкции (выбор будет влиять на размер и скорость ответа)",
+                #text=f"<b>Вы выбрали услугу</b>: {selected_service[1]} \n\nПожалуйста, выберите подходящую для вас длину инструкции (выбор будет влиять на размер и скорость ответа)", пока что
+                text=f"<b>Вы выбрали услугу</b>: {selected_service[1]} \n\n, Пожайлуста, подождите генерации",
                 parse_mode=ParseMode.HTML,
-                reply_markup=create_format_keyboard()
+                #reply_markup=create_format_keyboard() пока что
             )
             # await query.edit_message_text(
             #     text=f"<b>Вы выбрали услугу</b>: {selected_service[1]} \n\nПожалуйста, подождите ответа",
@@ -218,7 +220,8 @@ async def format_handler(update: Update, context:ContextTypes.DEFAULT_TYPE) -> N
     selected_service = context.user_data["selected_service"]
     document_id = context.user_data["document_id"]
 
-    callback_data = query.data
+    #callback_data = query.data пока что
+    callback_data = "format_long"
 
     if callback_data == "format_long":
         logger.info(f"User {user.id} chose LONG format LLM generate (1.5 end)")
