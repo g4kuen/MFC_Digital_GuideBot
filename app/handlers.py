@@ -186,6 +186,7 @@ async def choice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         logger.info(f"User {user.id} ended choice (2-end)")
         if "active_query" not in context.user_data or not context.user_data["active_query"]:
             context.user_data["current_select"] = selected_service[1]
+            context.user_data["is_short_request"] = False # пока что
             asyncio.create_task(fetch_gpt_and_edit(update, context, selected_service[1], document_id, url))# пока что
             await query.edit_message_text(
                 #text=f"<b>Вы выбрали услугу</b>: {selected_service[1]} \n\nПожалуйста, выберите подходящую для вас длину инструкции (выбор будет влиять на размер и скорость ответа)", пока что
